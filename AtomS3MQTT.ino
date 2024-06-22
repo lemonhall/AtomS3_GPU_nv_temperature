@@ -28,6 +28,12 @@ unsigned long lastMsg = 0;
 char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
+// 新增：记录上次重启的时间
+unsigned long lastRebootTime = 0;
+
+// 记录上次收到 MQTT 消息的时间
+unsigned long lastMQTTMsgTime = 0;
+
 void setupWifi();
 void callback(char* topic, byte* payload, unsigned int length);
 void reConnect();
@@ -35,10 +41,11 @@ void reConnect();
 void setup() {
     AtomS3.begin();
     setupWifi();
-    client.setServer(mqtt_server,
-                     1883);  // Sets the server details.  配置所连接的服务器
-    client.setCallback(
-        callback);  // Sets the message callback function.  设置消息回调函数
+    client.setServer(mqtt_server,1883);  // Sets the server details.  配置所连接的服务器
+    client.setCallback(callback);  // Sets the message callback function.  设置消息回调函数
+
+    // 初始化上次重启时间
+    lastRebootTime = millis();
 }
 
 void loop() {
@@ -50,11 +57,23 @@ void loop() {
                     // server.
     // 定期调用此函数，以允许主机处理传入消息并保持与服务器的连接
 
-    unsigned long now =
-        millis();  // Obtain the host startup duration.  获取主机开机时长
+    unsigned long now = millis();  // Obtain the host startup duration.  获取主机开机时长
     if (now - lastMsg > 2000) {
         lastMsg = now;
         ++value;
+    }
+
+    // 如果 1 分钟内没有收到 MQTT 消息，则休眠
+    if (now - lastMQTTMsgTime > 60000) {
+        // 在此处添加休眠的相关代码
+        Serial.println("Going to sleep due to no MQTT messages for 1 minutes.");
+        // 在此处调用相关的关机函数或执行关机操作
+        M5.Display.sleep();
+    }
+
+    // 新增：每 1 小时（3600000 毫秒）重启设备
+    if (now - lastRebootTime > 3600000 ) {
+        ESP.restart();
     }
 }
 
@@ -62,8 +81,7 @@ void setupWifi() {
     delay(10);
     AtomS3.Lcd.print("Connecting to Network...");
     Serial.printf("Connecting to %s", ssid);
-    WiFi.mode(
-        WIFI_STA);  // Set the mode to WiFi station mode.  设置模式为WIFI站模式
+    WiFi.mode(WIFI_STA);  // Set the mode to WiFi station mode.  设置模式为WIFI站模式
     WiFi.begin(ssid, password);  // Start Wifi connection.  开始wifi连接
 
     while (WiFi.status() != WL_CONNECTED) {
@@ -80,6 +98,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.print("Message arrived [");
     Serial.print(topic);
     Serial.print("] ");
+    M5.Display.wakeup();
     AtomS3.Lcd.setRotation(1);
     AtomS3.Lcd.fillScreen(BLACK);  // Set BLACK to the background color.  将黑色设置为底色
     AtomS3.Lcd.setCursor(8, 30);
@@ -100,6 +119,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
         AtomS3.Lcd.print((char)payload[i]);
     }
     Serial.println();
+
+    // 收到回调时更新时间
+    lastMQTTMsgTime = millis();
     
     delay(200);
 }
