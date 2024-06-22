@@ -19,8 +19,8 @@ PubSubClient client(espClient);
 
 // Configure the name and password of the connected wifi and your MQTT Serve
 // host.  配置所连接wifi的名称、密码以及你MQTT服务器域名
-const char* ssid        = "lemon_2.4";
-const char* password    = "shengaqiao";
+const char* ssid        = "xxxxxxxxxxxxxxxxxxx";
+const char* password    = "xxxxxxxxxxxxxxxxxxx";
 const char* mqtt_server = "192.168.50.232";
 
 unsigned long lastMsg = 0;
